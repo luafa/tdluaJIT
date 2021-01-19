@@ -287,18 +287,6 @@ struct {
     bool ready;
 }
 ]]
-local function new2old(obj)
-    for k, v in pairs(obj) do
-        if type(v) == 'table' then
-            new2old(v)
-        end
-        if k == '@type' and not obj._ then
-            obj._ = v
-            obj['@type'] = nil
-        end
-    end
-    return obj
-end
 local function old2new(obj)
     for k, v in pairs(obj) do
         if type(v) == 'table' then
@@ -354,7 +342,7 @@ end
 
 function tdlua.rawExecute(self, request)
     local resp = ffi.string(tdlib.td_json_client_execute(self.client, json.encode(old2new(request))))
-    return new2old(json.decode(resp))
+    return old2new(json.decode(resp))
 end
 
 function tdlua.rawReceive(self, timeout)
@@ -362,7 +350,7 @@ function tdlua.rawReceive(self, timeout)
    if resp == nil then
        return
    end
-   return new2old(json.decode(ffi.string(resp)))
+   return old2new(json.decode(ffi.string(resp)))
 end
 
 function tdlua.receive(self, timeout)
@@ -514,11 +502,12 @@ function mt.__index(self, method)
     end
 end
 loop = setmetatable(loop, mt)
-local function callback(client)
+local function callback(datas)
     while true do
         local update = yield()
         vardump(update)
     end
 end
-local i = loop:new(tdlua(), coroutine.wrap(callback))
+client = tdlua()
+local i = loop:new(client, coroutine.wrap(callback))
 i:loop()
